@@ -1,15 +1,17 @@
 import React,{useEffect, useRef, useState} from 'react'
-import { useSelector } from 'react-redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { getDownloadURL, getStorage, ref, uploadBytesResumable } from 'firebase/storage'
-import {app} from '../firebase'
+import { app } from '../firebase'
+import { updateUserFailure, updateUserStart, updateUserSuccess } from '../redux/user/userSlice'
 
 export default function Profile() {
-  const { currentUser } = useSelector(state => state.user)
+  const { currentUser, loading, error } = useSelector(state => state.user)
   const fileRef = useRef(null)
   const [file, setFile] = useState(undefined)
   const [filePercentage, setFilePercentage] = useState(0)
   const [fileUploadError, setFileUploadError] = useState(false)
-  const [formData,setFormData] = useState({})
+  const [formData, setFormData] = useState({})
+  const dispatch = useDispatch()
 
   useEffect(() => {
     if (file) {
@@ -37,8 +39,34 @@ export default function Profile() {
       })
     }
     );
-     
-    
+  }
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.id]: e.target.value })
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      console.log('start')
+      dispatch(updateUserStart())
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json()
+      if (data.success === false) {
+        dispatch(updateUserFailure(error.message))
+        return;
+      }
+
+      dispatch(updateUserSuccess(data))
+    } catch (error) {
+      dispatch(updateUserFailure(error.message))
+    }
   }
 
   return (
@@ -48,21 +76,22 @@ export default function Profile() {
         setFile(e.target.files[0])
           console.log("file", file)
       }} className='hidden' accept='image/*'/>
-      <form className='flex flex-col gap-4'>
+      <form className='flex flex-col gap-4' onSubmit={handleSubmit}>
         <img src={formData.avatar || currentUser.avatar} alt="profile" onClick={() => fileRef.current.click()} className='rounded-full h-24 w-24 object-cover hover:cursor-pointer self-center mt-2' />
          <p className='text-sm self-center'>
           {fileUploadError ? <span className='text-red-700'>error image upload - image should be less that 2mb</span> : filePercentage <100 && filePercentage>0 ? <span className='text-slate-700'>{`Uploading ${filePercentage}%`}</span> : filePercentage == 100 ? <span className='text-green-700'>successfully uploaded</span> : <></>}
         </p>
 
-        <input type="text" placeholder='username' id="username" className='rounded-lg p-3 border'  />
-        <input type="email" placeholder='email' id="email" className='rounded-lg p-3 border' />
-        <input type="password" placeholder='password' id="password" className='rounded-lg p-3 border' />
-        <button className='p-3 bg-slate-700 text-white rounded-lg uppercase hover:opacity-95 disabled:opacity-80'>update</button>
-        <div className='flex justify-between'>
-          <span className='text-red-700 cursor-pointer'>Delete Account</span>
-                    <span className='text-red-700 cursor-pointer'>Sign out</span>
-        </div>
+        <input type="text" placeholder='username' id="username" defaultValue={currentUser.username} onChange={handleChange}  className='rounded-lg p-3 border'  />
+        <input type="email" placeholder='email' id="email" defaultValue={currentUser.email} onChange={handleChange}  className='rounded-lg p-3 border' />
+        <input type="password" placeholder='password' id="password"  onChange={handleChange} className='rounded-lg p-3 border' />
+        <button disabled={loading} className='p-3 bg-slate-700 text-white rounded-lg uppercase hover:opacity-95 disabled:opacity-80'>{loading? "loading..." : "update"}</button>
       </form>
+              <div className='flex justify-between'>
+          <span className='text-red-700 cursor-pointer'>Delete Account</span>
+        <span className='text-red-700 cursor-pointer'>Sign out</span>
+        
+        </div>
     </div>
   )
 }
