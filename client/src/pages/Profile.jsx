@@ -11,6 +11,7 @@ export default function Profile() {
   const [filePercentage, setFilePercentage] = useState(0)
   const [fileUploadError, setFileUploadError] = useState(false)
   const [formData, setFormData] = useState({})
+  const [updateSuccess, setUpdateSuccess] = useState(false)
   const dispatch = useDispatch()
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function Profile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setUpdateSuccess(false)
     try {
       console.log('start')
       dispatch(updateUserStart())
@@ -59,11 +61,12 @@ export default function Profile() {
       });
       const data = await res.json()
       if (data.success === false) {
-        dispatch(updateUserFailure(error.message))
+        dispatch(updateUserFailure(data.message))
         return;
       }
 
       dispatch(updateUserSuccess(data))
+      setUpdateSuccess(true)
     } catch (error) {
       dispatch(updateUserFailure(error.message))
     }
@@ -90,8 +93,9 @@ export default function Profile() {
               <div className='flex justify-between'>
           <span className='text-red-700 cursor-pointer'>Delete Account</span>
         <span className='text-red-700 cursor-pointer'>Sign out</span>
-        
-        </div>
+      </div>
+      <p className='text-red-700'>{error ? error : ''}</p>
+       <p className='text-green-700'>{updateSuccess? 'user updated successfully!' : ''}</p>
     </div>
   )
 }
